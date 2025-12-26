@@ -10,6 +10,8 @@ export type PourHistoryItem = {
   ml: number;
   pointsEarned: number;
   note?: string;
+  // optional, used by some mobile views for labeling (e.g., "dispenser", "mobile")
+  source?: string;
 };
 
 export type HouseholdMember = {
@@ -21,28 +23,36 @@ export type HouseholdMember = {
 };
 
 export type HydrationState = {
+  // core UI state
   mode: Mode;
 
+  // dispenser status
   filterPercent: number;
   wifiConnected: boolean;
   iceEnabled: boolean;
   tempPreset: "COLD" | "COOL" | "ROOM" | "HOT";
 
+  // pouring / totals
   todayMl: number;
   currentPourMl: number;
 
-  goalGlasses: number;
+  // gamification
+  goalGlasses: number; // e.g. 8
   glassesToday: number;
 
   pointsToday: number;
   pointsTotal: number;
 
+  // quests
   dailyQuests: Quest[];
 
+  // household
   householdMembers: HouseholdMember[];
 
+  // history
   pourHistory: PourHistoryItem[];
 
+  // mobile pairing
   pairingCode: string;
   paired: boolean;
 };
@@ -111,7 +121,9 @@ export const store = (() => {
     getState() {
       return state;
     },
-    setState(patch: Partial<HydrationState> | ((prev: HydrationState) => Partial<HydrationState>)) {
+    setState(
+      patch: Partial<HydrationState> | ((prev: HydrationState) => Partial<HydrationState>)
+    ) {
       const nextPatch = typeof patch === "function" ? patch(state) : patch;
       state = { ...state, ...nextPatch };
       listeners.forEach((l) => l());
@@ -122,6 +134,15 @@ export const store = (() => {
     },
   };
 })();
+
+// ---------- Read helpers ----------
+export function getLivePourSnapshot() {
+  const s = store.getState();
+  return {
+    ml: s.currentPourMl,
+    pct: s.currentPourMl > 0 ? Math.round((s.currentPourMl / POUR_TARGET_ML) * 100) : 0,
+  };
+}
 
 // ---------- Actions ----------
 export function setMode(mode: Mode) {
@@ -190,6 +211,7 @@ export function stopPour() {
     ml,
     pointsEarned,
     note,
+    source: "dispenser",
   };
 
   store.setState((prev) => ({
@@ -214,9 +236,12 @@ export function addPourMl(delta: number) {
 }
 
 export function bumpHouseholdGlasses() {
+  // demo: add 1 glass to "You" after a pour ends
   store.setState((prev) => {
     const members = prev.householdMembers.map((m) =>
-      m.id === "you" ? { ...m, glassesToday: m.glassesToday + 1, pointsToday: m.pointsToday + 1 } : m
+      m.id === "you"
+        ? { ...m, glassesToday: m.glassesToday + 1, pointsToday: m.pointsToday + 1 }
+        : m
     );
     return { householdMembers: members };
   });
@@ -229,13 +254,14 @@ export function ensureDailyQuests() {
   }
 }
 
+// call this whenever a “glass” is earned
 export function awardGlassAndUpdateQuests(opts?: { isCold?: boolean }) {
   const s = store.getState();
   const nextGlasses = s.glassesToday + 1;
 
   let quests = (s.dailyQuests ?? defaultDailyQuests()).map((q) => ({ ...q }));
 
-  // AM_SPRINT
+  // AM_SPRINT (demo counts any glasses; time gating comes later)
   quests = quests.map((q) =>
     q.id === "AM_SPRINT" ? { ...q, progress: clamp(q.progress + 1, 0, q.target) } : q
   );
@@ -247,7 +273,7 @@ export function awardGlassAndUpdateQuests(opts?: { isCold?: boolean }) {
     );
   }
 
-  // FAMILY_COMBO (demo)
+  // FAMILY_COMBO (demo uses your glasses; we’ll wire real household sum later)
   quests = quests.map((q) =>
     q.id === "FAMILY_COMBO" ? { ...q, progress: clamp(nextGlasses, 0, q.target) } : q
   );
@@ -267,6 +293,7 @@ export function awardGlassAndUpdateQuests(opts?: { isCold?: boolean }) {
       : q
   );
 
+  // award newly completed quests
   const earned = quests
     .filter((q, i) => q.done && !(s.dailyQuests?.[i]?.done ?? false))
     .reduce((acc, q) => acc + q.reward, 0);
