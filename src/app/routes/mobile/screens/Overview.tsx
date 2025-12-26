@@ -1,7 +1,7 @@
 // src/app/routes/mobile/screens/Overview.tsx
 import { useHydration } from "../../../../core/state/useHydration";
 
-export function OverviewMobile() {
+export function Overview() {
   const s = useHydration();
 
   const todayMl = s.todayMl ?? 0;
