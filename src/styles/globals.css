@@ -1,0 +1,43 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+button {
+  background: rgba(255,255,255,0.08);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+button:hover { background: rgba(255,255,255,0.12); }
+
+/*Idle Waves*/
+
+@keyframes kmdWaveScrollLeft {
+  from { background-position: 0 0; }
+  to   { background-position: -720px 0; } /* match the svg tile width */
+}
+
+@keyframes kmdWaveScrollRight {
+  from { background-position: 0 0; }
+  to   { background-position: 720px 0; }  /* match the svg tile width */
+}
+
+@keyframes kmdShimmerScroll {
+  from { background-position: -140% 0; }
+  to   { background-position: 140% 0; }
+}
+
+@keyframes kmdSurfaceScroll {
+  from { background-position: 0 0; }
+  to   { background-position: -520px 0; }
+}
