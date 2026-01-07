@@ -3,13 +3,16 @@ import type React from "react";
 
 export function Idle({ onTap }: { onTap: () => void }) {
   const goToCare = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // don’t trigger the main tap-to-pour handler
     e.stopPropagation();
-    window.location.href = "/?view=care";
+    window.location.assign("/?view=care");
   };
 
   return (
     <div style={styles.wrap} onClick={onTap} role="button" tabIndex={0}>
+      {/* soft background */}
       <div style={styles.bg} />
+      {/* gloss / shimmer */}
       <div style={styles.shimmer} />
 
       <div style={styles.content}>
@@ -37,9 +40,6 @@ export function Idle({ onTap }: { onTap: () => void }) {
     </div>
   );
 }
-
-// ...styles same as last version you liked (no waves is fine)...
-
 
 const styles: Record<string, React.CSSProperties> = {
   wrap: {
