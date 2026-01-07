@@ -18,10 +18,12 @@ import { GamePerfectPour } from "./screens/GamePerfectPour";
 import { Household } from "./screens/Household";
 import { ToastHost } from "../../../ui/toast/ToastHost";
 
+// src/app/routes/dispenser/DispenserScreen.tsx
+// ...imports above...
+
 export function DispenserScreen() {
   const s = useHydration();
 
-  // Demo: auto-fill while pouring (replace with real sensor events later)
   useEffect(() => {
     if (s.mode !== "POURING") return;
     const t = setInterval(() => addPourMl(18), 120);
@@ -30,7 +32,6 @@ export function DispenserScreen() {
 
   return (
     <div style={styles.shell}>
-      {/* Top status bar */}
       <div style={styles.topBar}>
         <div style={{ fontWeight: 800, letterSpacing: -0.3 }}>
           KMD Hydration OS
@@ -45,7 +46,6 @@ export function DispenserScreen() {
         </div>
       </div>
 
-      {/* Main stage */}
       <div style={styles.stage}>
         <AnimatePresence mode="wait">
           {s.mode === "IDLE" && (
@@ -89,13 +89,12 @@ export function DispenserScreen() {
         </AnimatePresence>
       </div>
 
-      {/* Footer controls */}
       <div style={styles.footer}>
         <button onClick={() => setMode("IDLE")}>Idle</button>
         <button onClick={() => startPour()}>Start Pour</button>
         <button onClick={() => setMode("HOUSEHOLD")}>Household</button>
         <button onClick={() => setMode("GAME")}>Game</button>
-        <a href="/dispenser?view=mobile" style={{ textDecoration: "none" }}>
+        <a href="/?view=mobile" style={{ textDecoration: "none" }}>
           <button>Mobile</button>
         </a>
       </div>
@@ -104,6 +103,9 @@ export function DispenserScreen() {
     </div>
   );
 }
+
+// ...styles & anim unchanged...
+
 
 const anim = {
   initial: { opacity: 0, y: 10 },

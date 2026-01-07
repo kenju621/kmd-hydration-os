@@ -4,7 +4,7 @@ import type React from "react";
 export function Idle({ onTap }: { onTap: () => void }) {
   const goToCare = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    window.location.href = "/dispenser?view=care";
+    window.location.href = "/?view=care";
   };
 
   return (
@@ -37,6 +37,9 @@ export function Idle({ onTap }: { onTap: () => void }) {
     </div>
   );
 }
+
+// ...styles same as last version you liked (no waves is fine)...
+
 
 const styles: Record<string, React.CSSProperties> = {
   wrap: {

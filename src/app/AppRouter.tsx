@@ -16,7 +16,7 @@ export function AppRouter() {
   if (view === "care") return <CareShell />;
   if (view === "mobile") return <MobileCompanion />;
 
-  // default = Hydration OS
+  // Default view → Hydration OS
   return <DispenserScreen />;
 }
 
