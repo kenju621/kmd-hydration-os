@@ -1,40 +1,36 @@
 // src/app/AppRouter.tsx
-import type React from "react";
+import React from "react";
 import { DispenserScreen } from "./routes/dispenser/DispenserScreen";
+import CareShell from "./routes/care/CareShell";
 import { MobileCompanion } from "./routes/mobile/MobileCompanion";
-import { CareShell } from "./routes/care/CareShell";
-import { ToastHost } from "../ui/toast/ToastHost";
 
 export function AppRouter() {
-  // Simple manual routing based on pathname
-  const pathname =
-    typeof window !== "undefined" ? window.location.pathname : "/dispenser";
-
-  let screen: React.ReactNode;
-
-  if (pathname.startsWith("/mobile")) {
-    screen = <MobileCompanion />;
-  } else if (pathname.startsWith("/care")) {
-    screen = <CareShell />;
-  } else {
-    // default to dispenser screen (also for "/dispenser")
-    screen = <DispenserScreen />;
+  // SSR / build-time safety
+  if (typeof window === "undefined") {
+    return <DispenserScreen />;
   }
 
-  return (
-    <div style={styles.appShell}>
-      {screen}
-      <ToastHost />
-    </div>
-  );
+  const { pathname, search } = window.location;
+  const params = new URLSearchParams(search);
+  const view = params.get("view");
+
+  // ✅ Canonical entry: /dispenser (and we also tolerate "/")
+  if (pathname.startsWith("/dispenser") || pathname === "/") {
+    if (view === "care") return <CareShell />;
+    if (view === "mobile") return <MobileCompanion />;
+    return <DispenserScreen />;
+  }
+
+  // ✅ Nice-to-have: local dev direct paths still work
+  if (pathname.startsWith("/care")) {
+    return <CareShell />;
+  }
+  if (pathname.startsWith("/mobile")) {
+    return <MobileCompanion />;
+  }
+
+  // Fallback: always show main dispenser
+  return <DispenserScreen />;
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  appShell: {
-    minHeight: "100vh",
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
-    backgroundColor: "#050712",
-    color: "#ffffff",
-  },
-};
+export default AppRouter;

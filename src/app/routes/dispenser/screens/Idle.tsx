@@ -5,7 +5,7 @@ export function Idle({ onTap }: { onTap: () => void }) {
   // Navigate to Care OS without triggering the pour tap
   const goToCare = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    window.location.href = "/care";
+    window.location.href = "/dispenser?view=care";
   };
 
   return (
@@ -13,9 +13,9 @@ export function Idle({ onTap }: { onTap: () => void }) {
       {/* background wash */}
       <div style={styles.bg} />
 
-      {/* wave layers (infinite scroll via background-position) */}
-      <div style={{ ...styles.wave, ...styles.wave1 }} />
-      <div style={{ ...styles.wave, ...styles.wave2 }} />
+      {/* (Optional) wave layers — keep or remove as you like */}
+      {/* <div style={{ ...styles.wave, ...styles.wave1 }} />
+      <div style={{ ...styles.wave, ...styles.wave2 }} /> */}
 
       {/* shimmer sweep */}
       <div style={styles.shimmer} />
@@ -24,7 +24,9 @@ export function Idle({ onTap }: { onTap: () => void }) {
         <div style={styles.headerRow}>
           <div>
             <div style={styles.title}>Today’s hydration is on track</div>
-            <div style={styles.sub}>Tap anywhere to pour • Lift to dispense</div>
+            <div style={styles.sub}>
+              Tap anywhere to pour • Lift to dispense
+            </div>
           </div>
 
           {/* Top-right nav to Care OS */}
@@ -49,14 +51,14 @@ const styles: Record<string, React.CSSProperties> = {
   wrap: {
     position: "relative",
     width: "min(1100px, 100%)",
-    height: 480, // fixed panel height
-    maxHeight: "calc(100vh - 210px)", // stays above top bar + footer on smaller screens
+    height: 480,
+    maxHeight: "calc(100vh - 210px)",
     borderRadius: 22,
     overflow: "hidden",
     isolation: "isolate",
     cursor: "pointer",
     border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.03)",
+    background: "rgba(15,23,42,0.96)",
   },
 
   bg: {
@@ -67,6 +69,7 @@ const styles: Record<string, React.CSSProperties> = {
       "radial-gradient(circle at 25% 25%, rgba(33,177,255,0.28), transparent 50%), radial-gradient(circle at 70% 75%, rgba(33,177,255,0.14), transparent 55%), linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))",
   },
 
+  // If you later want the waves back, re-enable in JSX above and set these:
   wave: {
     position: "absolute",
     left: 0,
@@ -81,25 +84,23 @@ const styles: Record<string, React.CSSProperties> = {
     maskImage: "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0))",
     WebkitMaskImage: "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0))",
   },
-
   wave1: {
     bottom: -5,
     opacity: 0.55,
-    backgroundImage: "var(--kmd-wave1)", // defined in global CSS
+    backgroundImage: "var(--kmd-wave1)", // optional: defined in global CSS
     animation: "kmdWaveScrollLeft 6.5s linear infinite",
   },
-
   wave2: {
     bottom: 15,
     opacity: 0.35,
-    backgroundImage: "var(--kmd-wave2)", // defined in global CSS
+    backgroundImage: "var(--kmd-wave2)", // optional
     animation: "kmdWaveScrollRight 10.5s linear infinite",
   },
 
   shimmer: {
     position: "absolute",
     inset: 0,
-    zIndex: 2,
+    zIndex: 1,
     pointerEvents: "none",
     mixBlendMode: "screen",
     opacity: 0.5,
@@ -113,9 +114,9 @@ const styles: Record<string, React.CSSProperties> = {
 
   content: {
     position: "relative",
-    zIndex: 3,
+    zIndex: 2,
     padding: 24,
-    paddingBottom: 110, // reserves room so waves never collide with footer
+    paddingBottom: 110,
     display: "flex",
     flexDirection: "column",
     gap: 10,
