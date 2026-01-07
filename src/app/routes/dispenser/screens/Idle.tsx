@@ -2,7 +2,6 @@
 import type React from "react";
 
 export function Idle({ onTap }: { onTap: () => void }) {
-  // Navigate to Care OS without triggering the pour tap
   const goToCare = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     window.location.href = "/dispenser?view=care";
@@ -10,14 +9,7 @@ export function Idle({ onTap }: { onTap: () => void }) {
 
   return (
     <div style={styles.wrap} onClick={onTap} role="button" tabIndex={0}>
-      {/* background wash */}
       <div style={styles.bg} />
-
-      {/* (Optional) wave layers — keep or remove as you like */}
-      {/* <div style={{ ...styles.wave, ...styles.wave1 }} />
-      <div style={{ ...styles.wave, ...styles.wave2 }} /> */}
-
-      {/* shimmer sweep */}
       <div style={styles.shimmer} />
 
       <div style={styles.content}>
@@ -29,7 +21,6 @@ export function Idle({ onTap }: { onTap: () => void }) {
             </div>
           </div>
 
-          {/* Top-right nav to Care OS */}
           <div style={styles.navRow}>
             <button style={styles.navButton} onClick={goToCare}>
               Open Care&nbsp;OS
@@ -60,7 +51,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(15,23,42,0.96)",
   },
-
   bg: {
     position: "absolute",
     inset: 0,
@@ -68,35 +58,6 @@ const styles: Record<string, React.CSSProperties> = {
     background:
       "radial-gradient(circle at 25% 25%, rgba(33,177,255,0.28), transparent 50%), radial-gradient(circle at 70% 75%, rgba(33,177,255,0.14), transparent 55%), linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))",
   },
-
-  // If you later want the waves back, re-enable in JSX above and set these:
-  wave: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 220,
-    bottom: 10,
-    zIndex: 1,
-    pointerEvents: "none",
-    backgroundRepeat: "repeat-x",
-    backgroundSize: "720px 220px",
-    filter: "blur(0.2px)",
-    maskImage: "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0))",
-    WebkitMaskImage: "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0))",
-  },
-  wave1: {
-    bottom: -5,
-    opacity: 0.55,
-    backgroundImage: "var(--kmd-wave1)", // optional: defined in global CSS
-    animation: "kmdWaveScrollLeft 6.5s linear infinite",
-  },
-  wave2: {
-    bottom: 15,
-    opacity: 0.35,
-    backgroundImage: "var(--kmd-wave2)", // optional
-    animation: "kmdWaveScrollRight 10.5s linear infinite",
-  },
-
   shimmer: {
     position: "absolute",
     inset: 0,
@@ -111,7 +72,6 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundPosition: "-140% 0",
     animation: "kmdShimmerScroll 5.5s linear infinite",
   },
-
   content: {
     position: "relative",
     zIndex: 2,
@@ -123,17 +83,14 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     height: "100%",
   },
-
   headerRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
     gap: 16,
   },
-
   title: { fontSize: 32, fontWeight: 800, letterSpacing: -0.6 },
   sub: { fontSize: 14, opacity: 0.8 },
-
   hintRow: {
     marginTop: 14,
     display: "flex",
@@ -148,13 +105,11 @@ const styles: Record<string, React.CSSProperties> = {
     background: "rgba(0,0,0,0.15)",
     opacity: 0.92,
   },
-
   navRow: {
     display: "flex",
     alignItems: "center",
     gap: 8,
   },
-
   navButton: {
     padding: "8px 14px",
     borderRadius: 999,

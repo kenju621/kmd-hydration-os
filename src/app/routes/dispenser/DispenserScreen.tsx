@@ -59,8 +59,6 @@ export function DispenserScreen() {
               <Pour
                 onStop={() => {
                   stopPour();
-                  // Household bump is called inside stopPour in this version,
-                  // but this is a nice place if you want extra behavior.
                   bumpHouseholdGlasses();
                 }}
               />
@@ -102,7 +100,6 @@ export function DispenserScreen() {
         </a>
       </div>
 
-      {/* Global toasts */}
       <ToastHost />
     </div>
   );
