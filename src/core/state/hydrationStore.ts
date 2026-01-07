@@ -10,8 +10,7 @@ export type PourHistoryItem = {
   ml: number;
   pointsEarned: number;
   note?: string;
-  // optional, used by some mobile views for labeling (e.g., "dispenser", "mobile")
-  source?: string;
+  source?: string; // "dispenser" | "mobile" | etc. (demo only)
 };
 
 export type HouseholdMember = {
@@ -37,17 +36,22 @@ export type HydrationState = {
   currentPourMl: number;
 
   // gamification
-  goalGlasses: number; // e.g. 8
+  goalGlasses: number;
+  goalMl: number;       // ✅ compat: some screens use goalMl directly
   glassesToday: number;
-
   pointsToday: number;
   pointsTotal: number;
+
+  // last session (for post-pour / mobile overview)
+  sessionMl: number;    // ✅ compat: used by PostPour / mobile views
 
   // quests
   dailyQuests: Quest[];
 
   // household
   householdMembers: HouseholdMember[];
+  household: HouseholdMember[]; // ✅ compat alias for older code
+  streakDays: number;           // ✅ root-level streak for overview
 
   // history
   pourHistory: PourHistoryItem[];
@@ -57,7 +61,11 @@ export type HydrationState = {
   paired: boolean;
 };
 
+// ---------- Helpers / constants ----------
+
 type Listener = () => void;
+
+const STORAGE_KEY = "kmd_hydration_v1";
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
@@ -73,17 +81,36 @@ function makePairingCode() {
   return `${a}-${b}`;
 }
 
-function isPerfectPour(ml: number, target: number, window: number) {
-  return Math.abs(ml - target) <= window;
+function todayISO(): string {
+  const d = new Date();
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
-// Shared constants (used by Pour UI + scoring)
-export const POUR_TARGET_ML = 340;
-export const PERFECT_WINDOW_ML = 18;
+// "Perfect pour" window used by pour UI + game
+export const PERFECT_WINDOW_ML = {
+  min: 230,
+  max: 270,
+};
 
-// ---- Minimal Store (no zustand dependency) ----
-export const store = (() => {
-  let state: HydrationState = {
+// "Target" fill that the UI/game aims for.
+export const POUR_TARGET_ML = 250;
+
+// ---------- Default state ----------
+
+function defaultState(): HydrationState {
+  const baseGoalGlasses = 8;
+  const baseGoalMl = baseGoalGlasses * 240;
+
+  const baseHousehold: HouseholdMember[] = [
+    { id: "you", name: "You", glassesToday: 0, pointsToday: 0, streakDays: 3 },
+    { id: "a", name: "Alice", glassesToday: 2, pointsToday: 6, streakDays: 5 },
+    { id: "m", name: "Miles", glassesToday: 1, pointsToday: 3, streakDays: 2 },
+    { id: "g", name: "Guest", glassesToday: 0, pointsToday: 0, streakDays: 0 },
+  ];
+
+  const you = baseHousehold.find((m) => m.id === "you");
+
+  return {
     mode: "IDLE",
 
     filterPercent: 92,
@@ -94,40 +121,136 @@ export const store = (() => {
     todayMl: 0,
     currentPourMl: 0,
 
-    goalGlasses: 8,
-    glassesToday: 0,
+    goalGlasses: baseGoalGlasses,
+    goalMl: baseGoalMl,
 
+    glassesToday: 0,
     pointsToday: 0,
     pointsTotal: 0,
 
+    sessionMl: 0,
+
     dailyQuests: defaultDailyQuests(),
 
-    householdMembers: [
-      { id: "you", name: "You", glassesToday: 0, pointsToday: 0, streakDays: 3 },
-      { id: "a", name: "Alice", glassesToday: 2, pointsToday: 6, streakDays: 5 },
-      { id: "m", name: "Miles", glassesToday: 1, pointsToday: 3, streakDays: 2 },
-      { id: "g", name: "Guest", glassesToday: 0, pointsToday: 0, streakDays: 0 },
-    ],
+    householdMembers: baseHousehold,
+    household: baseHousehold,
+    streakDays: you?.streakDays ?? 3,
 
     pourHistory: [],
 
     pairingCode: makePairingCode(),
     paired: false,
   };
+}
+
+// Persisted payload wrapper so we can version + track day
+type PersistedPayload = {
+  version: 1;
+  lastDate: string;
+  state: HydrationState;
+};
+
+function safeLoadFromStorage(): HydrationState | null {
+  if (typeof window === "undefined") return null;
+  if (typeof window.localStorage === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as PersistedPayload;
+    const base = defaultState();
+    const today = todayISO();
+
+    // Merge with base so new fields get defaults
+    let st: HydrationState = { ...base, ...(parsed.state as Partial<HydrationState>) };
+
+    // Always boot the UI in a safe, idle state
+    st = {
+      ...st,
+      mode: "IDLE",
+      currentPourMl: 0,
+    };
+
+    // New day → reset daily portions, keep device context
+    if (parsed.lastDate !== today) {
+      st = {
+        ...st,
+        todayMl: 0,
+        glassesToday: 0,
+        pointsToday: 0,
+        dailyQuests: defaultDailyQuests(),
+        pourHistory: [],
+        sessionMl: 0,
+      };
+    }
+
+    // Ensure compat aliases are in sync
+    st = syncDerivedFields(st);
+
+    return st;
+  } catch {
+    // If anything is corrupted, just start fresh
+    return null;
+  }
+}
+
+function safePersistToStorage(state: HydrationState) {
+  if (typeof window === "undefined") return;
+  if (typeof window.localStorage === "undefined") return;
+
+  try {
+    const payload: PersistedPayload = {
+      version: 1,
+      lastDate: todayISO(),
+      state,
+    };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // swallow in demo
+  }
+}
+
+function syncDerivedFields(st: HydrationState): HydrationState {
+  const goalMl = st.goalGlasses * 240;
+
+  const householdMembers = st.householdMembers ?? st.household ?? [];
+  const household = householdMembers;
+  const you = householdMembers.find((m) => m.id === "you");
+
+  return {
+    ...st,
+    goalMl,
+    householdMembers,
+    household,
+    streakDays: you?.streakDays ?? st.streakDays ?? 0,
+  };
+}
+
+// ---------- Minimal store (no zustand dependency) ----------
+
+export const store = (() => {
+  let state: HydrationState =
+    typeof window !== "undefined" ? safeLoadFromStorage() ?? defaultState() : defaultState();
+
+  state = syncDerivedFields(state);
 
   const listeners = new Set<Listener>();
+
+  function setState(
+    patch: Partial<HydrationState> | ((prev: HydrationState) => Partial<HydrationState>)
+  ) {
+    const nextPatch = typeof patch === "function" ? patch(state) : patch;
+    state = syncDerivedFields({ ...state, ...nextPatch });
+    safePersistToStorage(state);
+    listeners.forEach((l) => l());
+  }
 
   return {
     getState() {
       return state;
     },
-    setState(
-      patch: Partial<HydrationState> | ((prev: HydrationState) => Partial<HydrationState>)
-    ) {
-      const nextPatch = typeof patch === "function" ? patch(state) : patch;
-      state = { ...state, ...nextPatch };
-      listeners.forEach((l) => l());
-    },
+    setState,
     subscribe(listener: Listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -135,16 +258,8 @@ export const store = (() => {
   };
 })();
 
-// ---------- Read helpers ----------
-export function getLivePourSnapshot() {
-  const s = store.getState();
-  return {
-    ml: s.currentPourMl,
-    pct: s.currentPourMl > 0 ? Math.round((s.currentPourMl / POUR_TARGET_ML) * 100) : 0,
-  };
-}
-
 // ---------- Actions ----------
+
 export function setMode(mode: Mode) {
   store.setState({ mode });
 }
@@ -182,6 +297,7 @@ export function startPour() {
   store.setState({
     mode: "POURING",
     currentPourMl: 0,
+    sessionMl: 0,
   });
 }
 
@@ -189,28 +305,14 @@ export function stopPour() {
   const s = store.getState();
 
   const ml = Math.max(0, s.currentPourMl);
-
-  // base points (demo)
-  let pointsEarned = ml >= 240 ? 2 : 1;
-  let note = s.tempPreset === "COLD" ? "Cold pour" : "Pour";
-
-  // ✅ Perfect Pour bonus
-  if (isPerfectPour(ml, POUR_TARGET_ML, PERFECT_WINDOW_ML)) {
-    pointsEarned += 6;
-    note = "Perfect pour!";
-    toastPush({
-      kind: "success",
-      title: "Perfect Pour! +6",
-      detail: "Locked in.",
-    });
-  }
+  const pointsEarned = ml >= 240 ? 2 : 1; // simple demo scoring
 
   const item: PourHistoryItem = {
     id: makeId("pour"),
     ts: Date.now(),
     ml,
     pointsEarned,
-    note,
+    note: s.tempPreset === "COLD" ? "Cold pour" : "Pour",
     source: "dispenser",
   };
 
@@ -218,32 +320,41 @@ export function stopPour() {
     mode: "POST_POUR",
     todayMl: prev.todayMl + ml,
     currentPourMl: 0,
+    sessionMl: ml,
     pointsToday: prev.pointsToday + pointsEarned,
     pointsTotal: prev.pointsTotal + pointsEarned,
     pourHistory: [item, ...prev.pourHistory].slice(0, 30),
   }));
 
-  // count a “glass” for demo purposes if pour >= 200ml
   if (ml >= 200) {
     awardGlassAndUpdateQuests({ isCold: s.tempPreset === "COLD" });
   }
+
+  bumpHouseholdGlasses();
 }
 
 export function addPourMl(delta: number) {
   store.setState((prev) => ({
     currentPourMl: Math.max(0, prev.currentPourMl + delta),
+    sessionMl: Math.max(0, prev.currentPourMl + delta),
   }));
 }
 
 export function bumpHouseholdGlasses() {
-  // demo: add 1 glass to "You" after a pour ends
   store.setState((prev) => {
-    const members = prev.householdMembers.map((m) =>
+    const updatedMembers = prev.householdMembers.map((m) =>
       m.id === "you"
-        ? { ...m, glassesToday: m.glassesToday + 1, pointsToday: m.pointsToday + 1 }
+        ? {
+            ...m,
+            glassesToday: m.glassesToday + 1,
+            pointsToday: m.pointsToday + 1,
+          }
         : m
     );
-    return { householdMembers: members };
+    return {
+      householdMembers: updatedMembers,
+      household: updatedMembers,
+    };
   });
 }
 
@@ -261,21 +372,27 @@ export function awardGlassAndUpdateQuests(opts?: { isCold?: boolean }) {
 
   let quests = (s.dailyQuests ?? defaultDailyQuests()).map((q) => ({ ...q }));
 
-  // AM_SPRINT (demo counts any glasses; time gating comes later)
+  // AM_SPRINT (demo: any glasses count)
   quests = quests.map((q) =>
-    q.id === "AM_SPRINT" ? { ...q, progress: clamp(q.progress + 1, 0, q.target) } : q
+    q.id === "AM_SPRINT"
+      ? { ...q, progress: clamp(q.progress + 1, 0, q.target) }
+      : q
   );
 
   // COLD_LOVE
   if (opts?.isCold) {
     quests = quests.map((q) =>
-      q.id === "COLD_LOVE" ? { ...q, progress: clamp(q.progress + 1, 0, q.target) } : q
+      q.id === "COLD_LOVE"
+        ? { ...q, progress: clamp(q.progress + 1, 0, q.target) }
+        : q
     );
   }
 
-  // FAMILY_COMBO (demo uses your glasses; we’ll wire real household sum later)
+  // FAMILY_COMBO (demo uses your glasses; later we can use household sum)
   quests = quests.map((q) =>
-    q.id === "FAMILY_COMBO" ? { ...q, progress: clamp(nextGlasses, 0, q.target) } : q
+    q.id === "FAMILY_COMBO"
+      ? { ...q, progress: clamp(nextGlasses, 0, q.target) }
+      : q
   );
 
   const beforeDone = (s.dailyQuests ?? []).filter((q) => q.done).length;
@@ -289,11 +406,14 @@ export function awardGlassAndUpdateQuests(opts?: { isCold?: boolean }) {
 
   quests = quests.map((q) =>
     q.id === "STREAK_STEP"
-      ? { ...q, progress: clamp(doneNow, 0, q.target), done: doneNow >= q.target }
+      ? {
+          ...q,
+          progress: clamp(doneNow, 0, q.target),
+          done: doneNow >= q.target,
+        }
       : q
   );
 
-  // award newly completed quests
   const earned = quests
     .filter((q, i) => q.done && !(s.dailyQuests?.[i]?.done ?? false))
     .reduce((acc, q) => acc + q.reward, 0);
@@ -312,6 +432,10 @@ export function awardGlassAndUpdateQuests(opts?: { isCold?: boolean }) {
       detail: "Keep the streak alive.",
     });
   } else if (quests.filter((q) => q.done).length > beforeDone) {
-    toastPush({ kind: "success", title: "Quest complete", detail: "Nice work." });
+    toastPush({
+      kind: "success",
+      title: "Quest complete",
+      detail: "Nice work.",
+    });
   }
 }
